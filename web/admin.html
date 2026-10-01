@@ -1,0 +1,93 @@
+<!-- web/admin.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>MAS Security - ADMIN TERMINAL</title>
+    <style>
+        body { font-family: monospace; background: #0d1117; color: #58a6ff; padding: 20px; }
+        .chat-box { height: 400px; border: 1px solid #30363d; overflow-y: scroll; padding: 10px; margin-bottom: 10px; background: #161b22; }
+        .msg { margin-bottom: 10px; padding: 8px; border-radius: 4px; }
+        .user-msg { background: #1f6feb; color: white; text-align: right; }
+        .ai-msg { background: #238636; color: white; text-align: left; white-space: pre-wrap;}
+        .error-msg { background: #8a2be2; color: white; text-align: left;}
+        input[type="text"] { width: 70%; padding: 10px; background: #0d1117; color: white; border: 1px solid #30363d; }
+        button { padding: 10px 20px; background: #1f6feb; color: white; border: none; cursor: pointer; }
+        button.approve { background: #d73a49; }
+    </style>
+</head>
+<body>
+    <h2>🛡️ MAS Security Terminal - [ROLE: ADMIN]</h2>
+    <div class="chat-box" id="chatbox"></div>
+    
+    <input type="text" id="userInput" placeholder="Enter command or question... (Press Enter to send)">
+    <button onclick="sendMessage()">Send</button>
+    <button class="approve" onclick="approveAction(true)">Approve (HITL)</button>
+    <button class="approve" onclick="approveAction(false)" style="background: #6a737d;">Reject</button>
+
+    <script>
+        // TỰ ĐỘNG LẤY IP: Dù truy cập bằng localhost hay IP LAN đều chạy được tuốt!
+        const API_BASE = window.location.origin + "/api"; 
+        const threadId = "admin_session_" + Math.floor(Math.random() * 1000);
+
+        // Hỗ trợ ấn phím Enter để gửi
+        document.getElementById("userInput").addEventListener("keypress", function(event) {
+            if (event.key === "Enter") {
+                event.preventDefault();
+                sendMessage();
+            }
+        });
+
+        function appendMessage(sender, text, msgClass) {
+            const box = document.getElementById('chatbox');
+            box.innerHTML += `<div class="msg ${msgClass}"><b>${sender}:</b> ${text}</div>`;
+            box.scrollTop = box.scrollHeight;
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('userInput');
+            const message = input.value;
+            if (!message) return;
+
+            appendMessage("Admin", message, 'user-msg');
+            input.value = "";
+
+            try {
+                // Thêm dòng loading cho chuyên nghiệp
+                const loadingId = "load_" + Date.now();
+                appendMessage("System", "Processing...", 'ai-msg');
+                const box = document.getElementById('chatbox');
+                const lastMsg = box.lastChild;
+                
+                const response = await fetch(`${API_BASE}/chat`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ message: message, role: "admin", thread_id: threadId })
+                });
+                
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                
+                const data = await response.json();
+                lastMsg.innerHTML = `<b>System:</b> ${data.response}`; // Thay chữ Processing bằng kết quả thật
+                
+            } catch (error) {
+                appendMessage("Frontend Error", "Cannot connect to Backend API. Check if FastAPI is running. Error: " + error.message, 'error-msg');
+            }
+        }
+
+        async function approveAction(isApproved) {
+            try {
+                const response = await fetch(`${API_BASE}/approve`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ thread_id: threadId, is_approved: isApproved })
+                });
+                const data = await response.json();
+                appendMessage("System", `[ACTION ${isApproved ? 'APPROVED' : 'REJECTED'}] ${data.response}`, 'ai-msg');
+            } catch (error) {
+                appendMessage("Frontend Error", "Failed to send approve request.", 'error-msg');
+            }
+        }
+    </script>
+</body>
+</html>

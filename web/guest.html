@@ -1,0 +1,81 @@
+<!-- web/guest.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>MAS Security - GUEST TERMINAL</title>
+    <style>
+        body { font-family: monospace; background: #0d1117; color: #8b949e; padding: 20px; }
+        .chat-box { height: 400px; border: 1px solid #30363d; overflow-y: scroll; padding: 10px; margin-bottom: 10px; background: #161b22; }
+        .msg { margin-bottom: 10px; padding: 8px; border-radius: 4px; }
+        .user-msg { background: #6e7681; color: white; text-align: right; }
+        .ai-msg { background: #238636; color: white; text-align: left; white-space: pre-wrap;}
+        .error-msg { background: #d73a49; color: white; text-align: left;}
+        input[type="text"] { width: 80%; padding: 10px; background: #0d1117; color: white; border: 1px solid #30363d; }
+        button { padding: 10px 20px; background: #6e7681; color: white; border: none; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h2>👤 MAS Security Terminal - [ROLE: GUEST]</h2>
+    <div class="chat-box" id="chatbox"></div>
+    
+    <input type="text" id="userInput" placeholder="Ask a research question... (Press Enter to send)">
+    <button onclick="sendMessage()">Send</button>
+
+    <script>
+        // TỰ ĐỘNG BẮT IP: Không cần hardcode IP nữa!
+        const API_BASE = window.location.origin + "/api"; 
+        const threadId = "guest_session_" + Math.floor(Math.random() * 1000);
+
+        // Bắt sự kiện phím Enter
+        document.getElementById("userInput").addEventListener("keypress", function(event) {
+            if (event.key === "Enter") {
+                event.preventDefault();
+                sendMessage();
+            }
+        });
+
+        function appendMessage(sender, text, msgClass) {
+            const box = document.getElementById('chatbox');
+            box.innerHTML += `<div class="msg ${msgClass}"><b>${sender}:</b> ${text}</div>`;
+            box.scrollTop = box.scrollHeight;
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('userInput');
+            const message = input.value;
+            if (!message) return;
+
+            // In tin nhắn của Guest
+            appendMessage("Guest", message, 'user-msg');
+            input.value = "";
+
+            try {
+                // Hiển thị trạng thái đang xử lý
+                appendMessage("System", "Processing...", 'ai-msg');
+                const box = document.getElementById('chatbox');
+                const lastMsg = box.lastChild;
+
+                const response = await fetch(`${API_BASE}/chat`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    // Cờ role fix cứng là 'guest' để test RBAC
+                    body: JSON.stringify({ message: message, role: "guest", thread_id: threadId })
+                });
+
+                if (!response.ok) {
+                    const errData = await response.json();
+                    throw new Error(errData.detail || `HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                lastMsg.innerHTML = `<b>System:</b> ${data.response}`; // Đè kết quả thật lên chữ Processing
+
+            } catch (error) {
+                // Nếu có lỗi mạng hoặc lỗi API, in thẳng ra màn hình đỏ chót
+                appendMessage("Frontend Error", "Cannot connect to Backend API. Error: " + error.message, 'error-msg');
+            }
+        }
+    </script>
+</body>
+</html>

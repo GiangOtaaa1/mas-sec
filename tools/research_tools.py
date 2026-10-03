@@ -2,7 +2,7 @@
 from langchain_core.tools import tool
 from ddgs import DDGS
 from security.audit import log_audit
-from datetime import datetime  # Import thư viện ngày giờ của Python
+from datetime import datetime  
 
 @tool
 def search_information(query: str) -> str:
@@ -15,13 +15,11 @@ def search_information(query: str) -> str:
     try:
         results = DDGS().text(query, max_results=3)
         
-        # Lấy ngày giờ thực tế của hệ thống máy chủ
         current_time = datetime.now().strftime("%A, %d/%m/%Y")
         
         if not results:
             return f"[System Note: Today is {current_time}]\nNo results found."
             
-        # Tiêm thẳng ngày giờ vào dòng đầu tiên của kết quả tìm kiếm
         formatted_results = [f"[System Note: Today is {current_time}]\nHere are the latest search results:"]
         
         for r in results:

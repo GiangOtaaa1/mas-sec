@@ -5,7 +5,6 @@ from langchain_core.messages import HumanMessage
 def test_qwen_connection():
     print("Đang khởi tạo kết nối tới Ollama (Qwen2.5:7b) qua IP 172.22.32.1...")
     
-    # Khởi tạo Chat Model với base_url mới
     llm = ChatOllama(
         base_url="http://172.22.32.1:11434",
         model="qwen2.5:7b",

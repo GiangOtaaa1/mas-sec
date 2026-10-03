@@ -26,11 +26,9 @@
     <button class="approve" onclick="approveAction(false)" style="background: #6a737d;">Reject</button>
 
     <script>
-        // TỰ ĐỘNG LẤY IP: Dù truy cập bằng localhost hay IP LAN đều chạy được tuốt!
         const API_BASE = window.location.origin + "/api"; 
         const threadId = "admin_session_" + Math.floor(Math.random() * 1000);
 
-        // Hỗ trợ ấn phím Enter để gửi
         document.getElementById("userInput").addEventListener("keypress", function(event) {
             if (event.key === "Enter") {
                 event.preventDefault();
@@ -53,7 +51,6 @@
             input.value = "";
 
             try {
-                // Thêm dòng loading cho chuyên nghiệp
                 const loadingId = "load_" + Date.now();
                 appendMessage("System", "Processing...", 'ai-msg');
                 const box = document.getElementById('chatbox');
@@ -68,7 +65,7 @@
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 
                 const data = await response.json();
-                lastMsg.innerHTML = `<b>System:</b> ${data.response}`; // Thay chữ Processing bằng kết quả thật
+                lastMsg.innerHTML = `<b>System:</b> ${data.response}`; 
                 
             } catch (error) {
                 appendMessage("Frontend Error", "Cannot connect to Backend API. Check if FastAPI is running. Error: " + error.message, 'error-msg');

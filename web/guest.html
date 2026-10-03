@@ -23,7 +23,6 @@
     <button onclick="sendMessage()">Send</button>
 
     <script>
-        // TỰ ĐỘNG BẮT IP: Không cần hardcode IP nữa!
         const API_BASE = window.location.origin + "/api"; 
         const threadId = "guest_session_" + Math.floor(Math.random() * 1000);
 
@@ -46,12 +45,10 @@
             const message = input.value;
             if (!message) return;
 
-            // In tin nhắn của Guest
             appendMessage("Guest", message, 'user-msg');
             input.value = "";
 
             try {
-                // Hiển thị trạng thái đang xử lý
                 appendMessage("System", "Processing...", 'ai-msg');
                 const box = document.getElementById('chatbox');
                 const lastMsg = box.lastChild;
@@ -59,7 +56,6 @@
                 const response = await fetch(`${API_BASE}/chat`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    // Cờ role fix cứng là 'guest' để test RBAC
                     body: JSON.stringify({ message: message, role: "guest", thread_id: threadId })
                 });
 
@@ -72,7 +68,6 @@
                 lastMsg.innerHTML = `<b>System:</b> ${data.response}`; // Đè kết quả thật lên chữ Processing
 
             } catch (error) {
-                // Nếu có lỗi mạng hoặc lỗi API, in thẳng ra màn hình đỏ chót
                 appendMessage("Frontend Error", "Cannot connect to Backend API. Error: " + error.message, 'error-msg');
             }
         }

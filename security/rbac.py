@@ -10,7 +10,7 @@ def check_permission(role: str, target_agent: str) -> bool:
     
     # Define policies
     policies = {
-        "guest": ["Worker1"],
+        "guest": ["Worker1", "Worker2"],
         "admin": ["Worker1", "Worker2"]
     }
     

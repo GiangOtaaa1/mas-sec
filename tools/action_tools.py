@@ -1,4 +1,4 @@
-# tools/action_tools.py
+''' tools/action_tools.py
 from langchain_core.tools import tool
 from security.workspace import validate_command_paths
 from sandbox.manager import execute_in_docker
@@ -18,3 +18,4 @@ def execute_command(command: str) -> str:
     # 2. Execute REAL command inside Docker Sandbox
     log_audit("DOCKER_EXECUTION", "system_worker", f"Executing safe command in sandbox: {command}")
     return execute_in_docker(command)
+'''

@@ -54,7 +54,7 @@ async def approve_action(request: Request):
         else:
             return JSONResponse(
                 status_code=400, 
-                content={"response": "Không có phiên làm việc nào đang chờ phê duyệt!"}
+                content={"response": "Không có phiên làm việc nào đang chờ phê duyệt"}
             )
             
         config = {"configurable": {"thread_id": target_thread}}

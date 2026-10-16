@@ -9,7 +9,7 @@ def search_information(query: str) -> str:
     """Use this tool to search the internet for real-time news, facts, updates, and current events.
     Input should be a specific search query."""
     
-    print(f"\n[🚀 WORKER 1 IS ONLINE] Searching internet for: '{query}'\n")
+    print(f"\n[WORKER 1 IS ONLINE] Searching internet for: '{query}'\n")
     log_audit("TOOL_USAGE", "worker1", f"Executed internet search for: {query}")
     
     try:

@@ -1,76 +1,156 @@
-<!-- web/guest.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>MAS Security - GUEST TERMINAL</title>
-    <style>
-        body { font-family: monospace; background: #0d1117; color: #8b949e; padding: 20px; }
-        .chat-box { height: 400px; border: 1px solid #30363d; overflow-y: scroll; padding: 10px; margin-bottom: 10px; background: #161b22; }
-        .msg { margin-bottom: 10px; padding: 8px; border-radius: 4px; }
-        .user-msg { background: #6e7681; color: white; text-align: right; }
-        .ai-msg { background: #238636; color: white; text-align: left; white-space: pre-wrap;}
-        .error-msg { background: #d73a49; color: white; text-align: left;}
-        input[type="text"] { width: 80%; padding: 10px; background: #0d1117; color: white; border: 1px solid #30363d; }
-        button { padding: 10px 20px; background: #6e7681; color: white; border: none; cursor: pointer; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MAS Security · Guest</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0a0f1e; --panel:#111830; --panel-2:#161f3b; --line:#252f50;
+  --text:#e7ecf8; --muted:#8c98b8; --accent:#5cc8ff; --accent-ink:#04202f;
+  --ok:#4fd1a1; --danger:#ff6b7a; --user:#1d4a66;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:radial-gradient(1200px 600px at 20% -10%,#12294a 0,transparent 60%),var(--bg);color:var(--text);font:15px/1.55 var(--sans);display:flex;justify-content:center}
+.app{width:100%;max-width:880px;height:100%;display:flex;flex-direction:column;padding:16px}
+header{display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--panel);border:1px solid var(--line);border-radius:14px}
+.logo{width:36px;height:36px;border-radius:10px;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font-size:18px}
+.title{font-weight:600;font-size:16px;line-height:1.2}
+.sub{color:var(--muted);font-size:12.5px}
+.badge{margin-left:auto;display:flex;align-items:center;gap:8px;font:500 12px var(--mono);color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 45%,transparent);padding:5px 10px;border-radius:999px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 3px color-mix(in srgb,var(--ok) 25%,transparent)}
+.dot.off{background:var(--danger);box-shadow:0 0 0 3px color-mix(in srgb,var(--danger) 25%,transparent)}
+#chat{flex:1;overflow-y:auto;padding:20px 4px;display:flex;flex-direction:column;gap:14px;scroll-behavior:smooth}
+#chat::-webkit-scrollbar{width:8px}#chat::-webkit-scrollbar-thumb{background:var(--line);border-radius:8px}
+.empty{margin:auto;text-align:center;color:var(--muted);max-width:400px}
+.empty b{display:block;color:var(--text);font-size:17px;margin-bottom:6px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:16px}
+.chip{font:500 13px var(--sans);color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:7px 13px;cursor:pointer;transition:border-color .15s,background .15s}
+.chip:hover{border-color:var(--accent);background:var(--panel-2)}
+.row{display:flex;flex-direction:column;max-width:82%}
+.row.user{align-self:flex-end;align-items:flex-end}
+.who{font:500 11.5px var(--mono);color:var(--muted);margin:0 4px 4px}
+.bubble{padding:10px 14px;border-radius:14px;white-space:pre-wrap;overflow-wrap:anywhere;border:1px solid var(--line);background:var(--panel-2)}
+.user .bubble{background:var(--user);border-color:#2a6a94;border-bottom-right-radius:4px}
+.sys .bubble{border-bottom-left-radius:4px}
+.err .bubble{background:#2a1220;border-color:#5c2335;color:#ffc2c9}
+code{font:13px var(--mono);background:#0b1226;padding:1px 6px;border-radius:5px}
+pre{margin:8px 0 0;padding:12px;background:#0b1226;border:1px solid var(--line);border-radius:10px;overflow-x:auto}
+pre code{padding:0;background:none}
+.typing{display:flex;gap:5px;padding:4px 0}
+.typing i{width:7px;height:7px;border-radius:50%;background:var(--muted);animation:b 1s infinite}
+.typing i:nth-child(2){animation-delay:.15s}.typing i:nth-child(3){animation-delay:.3s}
+@keyframes b{0%,60%,100%{opacity:.3;transform:none}30%{opacity:1;transform:translateY(-3px)}}
+.composer{display:flex;gap:10px;align-items:flex-end;padding:10px;background:var(--panel);border:1px solid var(--line);border-radius:14px}
+.composer:focus-within{border-color:var(--accent)}
+textarea{flex:1;resize:none;max-height:140px;background:transparent;border:0;outline:0;color:var(--text);font:15px/1.5 var(--sans);padding:8px 6px}
+textarea::placeholder{color:var(--muted)}
+.btn{font:600 13.5px var(--sans);border:0;border-radius:9px;padding:10px 18px;cursor:pointer;background:var(--accent);color:var(--accent-ink);transition:filter .15s,transform .1s}
+.btn:hover:not(:disabled){filter:brightness(1.1)} .btn:active:not(:disabled){transform:translateY(1px)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.hint{text-align:center;color:var(--muted);font-size:11.5px;margin-top:8px}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (max-width:560px){.app{padding:8px}.row{max-width:94%}.sub{display:none}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;scroll-behavior:auto!important;transition:none!important}}
+</style>
 </head>
 <body>
-    <h2>👤 MAS Security Terminal - [ROLE: GUEST]</h2>
-    <div class="chat-box" id="chatbox"></div>
-    
-    <input type="text" id="userInput" placeholder="Ask a research question... (Press Enter to send)">
-    <button onclick="sendMessage()">Send</button>
+<div class="app">
+  <header>
+    <div class="logo" aria-hidden="true">👤</div>
+    <div><div class="title">MAS Security Terminal</div><div class="sub">Research assistant</div></div>
+    <div class="badge"><span class="dot" id="status"></span>GUEST</div>
+  </header>
 
-    <script>
-        const API_BASE = window.location.origin + "/api"; 
-        const threadId = "guest_session_" + Math.floor(Math.random() * 1000);
+  <main id="chat" aria-live="polite">
+    <div class="empty" id="empty">
+      <b>What would you like to research?</b>
+      Ask a question and the agents will look into it for you.
+      <div class="chips">
+        <button class="chip">Summarize recent phishing trends</button>
+        <button class="chip">Explain how zero trust works</button>
+        <button class="chip">What is a SIEM used for?</button>
+      </div>
+    </div>
+  </main>
 
-        // Bắt sự kiện phím Enter
-        document.getElementById("userInput").addEventListener("keypress", function(event) {
-            if (event.key === "Enter") {
-                event.preventDefault();
-                sendMessage();
-            }
-        });
+  <div class="composer">
+    <textarea id="input" rows="1" placeholder="Ask a research question" aria-label="Message"></textarea>
+    <button class="btn" id="sendBtn">Send</button>
+  </div>
+  <div class="hint">Enter to send · Shift+Enter for a new line</div>
+</div>
 
-        function appendMessage(sender, text, msgClass) {
-            const box = document.getElementById('chatbox');
-            box.innerHTML += `<div class="msg ${msgClass}"><b>${sender}:</b> ${text}</div>`;
-            box.scrollTop = box.scrollHeight;
-        }
+<script>
+const API = window.location.origin + "/api";
+const threadId = "guest_session_" + (crypto.randomUUID ? crypto.randomUUID().slice(0, 8) : Math.floor(Math.random() * 1e6));
+const $ = id => document.getElementById(id);
+const chat = $("chat"), input = $("input"), sendBtn = $("sendBtn");
+let busy = false;
 
-        async function sendMessage() {
-            const input = document.getElementById('userInput');
-            const message = input.value;
-            if (!message) return;
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmt = s => esc(s)
+  .replace(/```([\s\S]*?)```/g, (m, c) => `<pre><code>${c.replace(/^\w*\n/, "")}</code></pre>`)
+  .replace(/`([^`\n]+)`/g, "<code>$1</code>")
+  .replace(/\*\*([^*\n]+)\*\*/g, "<strong>$1</strong>");
 
-            appendMessage("Guest", message, 'user-msg');
-            input.value = "";
+function add(kind, who, html) {
+  $("empty")?.remove();
+  const row = document.createElement("div");
+  row.className = "row " + kind;
+  row.innerHTML = `<div class="who">${who}</div><div class="bubble">${html}</div>`;
+  chat.appendChild(row);
+  chat.scrollTop = chat.scrollHeight;
+  return row.querySelector(".bubble");
+}
 
-            try {
-                appendMessage("System", "Processing...", 'ai-msg');
-                const box = document.getElementById('chatbox');
-                const lastMsg = box.lastChild;
+async function sendMessage(text) {
+  const message = (text ?? input.value).trim();
+  if (!message || busy) return;
+  add("user", "Guest", esc(message));
+  input.value = ""; input.style.height = "auto";
+  busy = true; sendBtn.disabled = true;
+  const bubble = add("sys", "System", '<div class="typing"><i></i><i></i><i></i></div>');
+  try {
+    const res = await fetch(API + "/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message, role: "guest", thread_id: threadId })
+    });
+    if (!res.ok) {
+      let detail = "";
+      try { detail = (await res.json()).detail; } catch (_) {}
+      throw new Error(detail || `HTTP ${res.status}`);
+    }
+    const data = await res.json();
+    $("status").classList.remove("off");
+    bubble.innerHTML = fmt(data.response ?? "");
+  } catch (e) {
+    $("status").classList.add("off");
+    bubble.closest(".row").remove();
+    add("err", "Error", esc("Request failed. " + e.message));
+  } finally {
+    busy = false; sendBtn.disabled = false; input.focus();
+    chat.scrollTop = chat.scrollHeight;
+  }
+}
 
-                const response = await fetch(`${API_BASE}/chat`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ message: message, role: "guest", thread_id: threadId })
-                });
-
-                if (!response.ok) {
-                    const errData = await response.json();
-                    throw new Error(errData.detail || `HTTP error! status: ${response.status}`);
-                }
-
-                const data = await response.json();
-                lastMsg.innerHTML = `<b>System:</b> ${data.response}`; // Đè kết quả thật lên chữ Processing
-
-            } catch (error) {
-                appendMessage("Frontend Error", "Cannot connect to Backend API. Error: " + error.message, 'error-msg');
-            }
-        }
-    </script>
+sendBtn.onclick = () => sendMessage();
+document.querySelectorAll(".chip").forEach(c => c.onclick = () => sendMessage(c.textContent));
+input.addEventListener("keydown", e => {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+});
+input.addEventListener("input", () => {
+  input.style.height = "auto";
+  input.style.height = Math.min(input.scrollHeight, 140) + "px";
+});
+input.focus();
+</script>
 </body>
 </html>

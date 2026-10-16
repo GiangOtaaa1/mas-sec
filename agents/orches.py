@@ -14,7 +14,6 @@ class RouteDecision(BaseModel):
 def get_orchestrator():
     llm = get_llm(temperature=0.0)
     
-    # Prompt mới, dạy AI phân biệt giữa ngôn ngữ tự nhiên và lệnh OS
     system_prompt = (
         "You are the Orchestrator of a Multi-Agent System.\n"
         "Your ONLY job is to route the user's request.\n\n"

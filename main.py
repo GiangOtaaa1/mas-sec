@@ -1,15 +1,22 @@
 # main.py
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
+
 from api.routes import router
-import os
+from gateway.main import SecurityAuditMiddleware, router as gateway_router
 
 app = FastAPI(
     title="MAS Security API",
     description="Multi-Agent System for Security Analysis",
     version="1.0.0"
 )
+
+app.include_router(router, prefix="/api")
+app.include_router(gateway_router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -18,13 +25,19 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(SecurityAuditMiddleware)
 
-app.include_router(router, prefix="/api")
+WEB_DIR = Path(__file__).resolve().parent / "web"
 
-web_dir = os.path.join(os.path.dirname(__file__), "web")
-if os.path.exists(web_dir):
-    app.mount("/", StaticFiles(directory=web_dir, html=True), name="web")
+
+@app.get("/", include_in_schema=False)
+async def home():
+    return RedirectResponse(url="/login.html")
+
+
+app.mount("/", StaticFiles(directory=WEB_DIR), name="web")
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

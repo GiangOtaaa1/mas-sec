@@ -1,15 +1,11 @@
 # test_phase0.py
-from langchain_ollama import ChatOllama
 from langchain_core.messages import HumanMessage
+from config import Config, get_llm
 
 def test_qwen_connection():
-    print("Đang khởi tạo kết nối tới Ollama (Qwen2.5:7b) qua IP 172.22.32.1...")
+    print(f"Đang khởi tạo kết nối tới Ollama ({Config.MODEL_NAME}) tại {Config.OLLAMA_BASE_URL}...")
     
-    llm = ChatOllama(
-        base_url="http://172.22.32.1:11434",
-        model="qwen2.5:7b",
-        temperature=0.7
-    )
+    llm = get_llm(temperature=0.7)
     
     # Tạo câu prompt test
     messages = [

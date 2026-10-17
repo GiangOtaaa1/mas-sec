@@ -24,6 +24,8 @@ header{display:flex;align-items:center;gap:12px;padding:12px 16px;background:var
 .title{font-weight:600;font-size:16px;line-height:1.2}
 .sub{color:var(--muted);font-size:12.5px}
 .badge{margin-left:auto;display:flex;align-items:center;gap:8px;font:500 12px var(--mono);color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 45%,transparent);padding:5px 10px;border-radius:999px}
+.logout{font:500 12px var(--sans);color:var(--text);background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:7px 10px;cursor:pointer}
+.logout:hover{border-color:var(--danger);color:var(--danger)}
 .dot{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 3px color-mix(in srgb,var(--ok) 25%,transparent)}
 .dot.off{background:var(--danger);box-shadow:0 0 0 3px color-mix(in srgb,var(--danger) 25%,transparent)}
 #chat{flex:1;overflow-y:auto;padding:20px 4px;display:flex;flex-direction:column;gap:14px;scroll-behavior:smooth}
@@ -66,6 +68,7 @@ textarea::placeholder{color:var(--muted)}
     <div class="logo" aria-hidden="true">👤</div>
     <div><div class="title">MAS Security Terminal</div><div class="sub">Research assistant</div></div>
     <div class="badge"><span class="dot" id="status"></span>GUEST</div>
+    <button class="logout" id="logoutBtn" type="button">Log out</button>
   </header>
 
   <main id="chat" aria-live="polite">
@@ -94,6 +97,23 @@ const $ = id => document.getElementById(id);
 const chat = $("chat"), input = $("input"), sendBtn = $("sendBtn");
 let busy = false;
 
+if (localStorage.getItem("mas_role") !== "guest" || !localStorage.getItem("mas_token")) {
+  window.location.replace("/login.html");
+}
+
+async function logout() {
+  localStorage.removeItem("mas_token");
+  localStorage.removeItem("mas_username");
+  localStorage.removeItem("mas_role");
+  try {
+    const response = await fetch("/api/v1/auth/logout", { method: "POST" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  } catch (error) {
+    alert(`Could not clear the server session: ${error.message}`);
+  }
+  window.location.replace("/login.html");
+}
+
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const fmt = s => esc(s)
   .replace(/```([\s\S]*?)```/g, (m, c) => `<pre><code>${c.replace(/^\w*\n/, "")}</code></pre>`)
@@ -120,8 +140,11 @@ async function sendMessage(text) {
   try {
     const res = await fetch(API + "/chat", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, role: "guest", thread_id: threadId })
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${localStorage.getItem("mas_token")}`
+      },
+      body: JSON.stringify({ message, thread_id: threadId })
     });
     if (!res.ok) {
       let detail = "";
@@ -142,6 +165,7 @@ async function sendMessage(text) {
 }
 
 sendBtn.onclick = () => sendMessage();
+$("logoutBtn").addEventListener("click", logout);
 document.querySelectorAll(".chip").forEach(c => c.onclick = () => sendMessage(c.textContent));
 input.addEventListener("keydown", e => {
   if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }

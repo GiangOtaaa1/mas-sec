@@ -18,6 +18,7 @@ class AgentState(TypedDict):
     next_agent: str
     moderation_action: str
     user_role: str
+    approval_granted: bool
 
 # 2. Node Functions
 def moderator_node(state: AgentState):
@@ -86,8 +87,18 @@ def worker2_node(state: AgentState):
 def hitl_node(state: AgentState):
     """Approval checkpoint. The graph will pause HERE if the command is considered risky."""
     user_role = state.get("user_role", "unknown")
+    if not state.get("approval_granted", False):
+        log_audit("HITL_REJECTED", user_role, "Admin rejected manual execution.")
+        return {
+            "messages": [AIMessage(content="[HITL REJECTED] Admin rejected the requested action.")],
+        }
     log_audit("HITL_APPROVED", user_role, "Admin approved manual execution.")
     return {} 
+
+
+def hitl_route(state: AgentState):
+    return "worker2" if state.get("approval_granted", False) else END
+
 
 # 3. Routing Condition Functions
 def moderator_route(state: AgentState):
@@ -147,8 +158,11 @@ def build_graph():
         }
     )
     
-    # Connect the approval checkpoint to Worker 2
-    workflow.add_edge("hitl_node", "worker2") 
+    workflow.add_conditional_edges(
+        "hitl_node",
+        hitl_route,
+        {"worker2": "worker2", END: END},
+    )
     
     workflow.add_edge("worker1", END)
     workflow.add_edge("worker2", END)

@@ -488,16 +488,7 @@
             return text.replace(/[&<>"']/g, function(m) { return map[m]; });
         }
 
-        // Auto check existing session on load
-        window.onload = function() {
-            const token = localStorage.getItem('mas_token');
-            const username = localStorage.getItem('mas_username');
-            const role = localStorage.getItem('mas_role');
-
-            if (token && username && ['admin', 'guest'].includes(role)) {
-                window.location.replace(role === 'admin' ? '/admin.html' : '/guest.html');
-            }
-        };
+        document.getElementById('username').focus();
     </script>
 </body>
 </html>

@@ -1,0 +1,20 @@
+{
+  "id": "mas-security",
+  "name": "MAS Security",
+  "description": "Send requests through the authenticated MAS security workflow.",
+  "version": "0.1.0",
+  "configSchema": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+  },
+  "activation": {
+    "onStartup": true
+  },
+  "contracts": {
+    "tools": [
+      "mas_chat",
+      "mas_approval_status"
+    ]
+  }
+}

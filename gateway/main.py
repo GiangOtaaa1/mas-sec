@@ -31,10 +31,6 @@ class LoginRequest(BaseModel):
     password: str
 
 
-class PromptRequest(BaseModel):
-    prompt: str
-
-
 # 1. Endpoint cấp phát Token (Mô phỏng xác thực)
 @router.post("/api/v1/auth/token")
 def login(form_data: LoginRequest, request: Request, response: Response):
@@ -59,26 +55,7 @@ def login(form_data: LoginRequest, request: Request, response: Response):
     )
     return {"access_token": token, "token_type": "bearer", "role": role}
 
-# 2. Endpoint for user requests (Forward to Moderator Agent)
-@router.post("/api/v1/agent/chat")
-def proxy_to_moderator(payload: PromptRequest, current_user: dict = Depends(get_current_user)):
-    """
-    Điểm tiếp nhận yêu cầu từ người dùng.
-    Sau khi qua Gateway, request sẽ được chuyển tiếp vào Moderator Agent (Lớp 2).
-    """
-    user_role = current_user["role"]
-    user_name = current_user["username"]
-
-    # Tại đây Gateway sẽ đẩy payload qua LangGraph Workflow
-    return {
-        "status": "FORWARDED_TO_MODERATOR",
-        "user": user_name,
-        "role": user_role,
-        "received_prompt": payload.prompt,
-        "message": "Request passed FastAPI Gateway security checks."
-    }
-
-# 3. Endpoint for admin-only workspace purge (RBAC enforced)
+# 2. Endpoint for admin-only workspace purge (RBAC enforced)
 @router.delete("/api/v1/admin/purge-workspace")
 def admin_purge(current_user: dict = Depends(require_role("admin"))):
     """

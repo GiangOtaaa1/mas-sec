@@ -51,6 +51,11 @@ pre code{padding:0;background:none}
 .hitl{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 14px;margin-bottom:10px;border:1px solid color-mix(in srgb,var(--accent) 40%,var(--line));background:color-mix(in srgb,var(--accent) 7%,var(--panel));border-radius:12px}
 .hitl p{margin:0;flex:1;min-width:200px;font-size:13.5px}
 .hitl p span{color:var(--muted);display:block;font-size:12.5px}
+.pending-list{display:grid;gap:10px;width:100%}
+.pending-item{display:grid;gap:8px;padding:12px;background:var(--panel);border:1px solid var(--line);border-radius:10px}
+.pending-meta{color:var(--muted);font:12px var(--mono);overflow-wrap:anywhere}
+.pending-request{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+.pending-actions{display:flex;gap:8px}
 .btn{font:600 13.5px var(--sans);border:0;border-radius:9px;padding:9px 16px;cursor:pointer;transition:filter .15s,transform .1s}
 .btn:hover:not(:disabled){filter:brightness(1.12)} .btn:active:not(:disabled){transform:translateY(1px)}
 .btn:disabled{opacity:.45;cursor:not-allowed}
@@ -81,9 +86,8 @@ textarea::placeholder{color:var(--muted)}
   </main>
 
   <section class="hitl" aria-label="Human approval">
-    <p>Pending action?<span>Approve or reject what the agent is waiting on.</span></p>
-    <button class="btn approve" id="approveBtn">Approve</button>
-    <button class="btn reject" id="rejectBtn">Reject</button>
+    <p>Pending actions<span>Approvals apply to the exact OpenClaw or admin thread shown below.</span></p>
+    <div class="pending-list" id="pendingList" aria-live="polite">Loading pending approvals…</div>
   </section>
 
   <div class="composer">
@@ -97,8 +101,8 @@ textarea::placeholder{color:var(--muted)}
 const API = window.location.origin + "/api";
 const threadId = "admin_session_" + (crypto.randomUUID ? crypto.randomUUID().slice(0, 8) : Math.floor(Math.random() * 1e6));
 const $ = id => document.getElementById(id);
-const chat = $("chat"), input = $("input"), sendBtn = $("sendBtn"), approveBtn = $("approveBtn"), rejectBtn = $("rejectBtn");
-let busy = false;
+const chat = $("chat"), input = $("input"), sendBtn = $("sendBtn"), pendingList = $("pendingList");
+let busy = false, refreshingApprovals = false;
 
 if (localStorage.getItem("mas_role") !== "admin" || !localStorage.getItem("mas_token")) {
   window.location.replace("/login.html");
@@ -135,17 +139,18 @@ function add(kind, who, html) {
 
 function setBusy(v) {
   busy = v;
-  [sendBtn, approveBtn, rejectBtn].forEach(b => b.disabled = v);
+  sendBtn.disabled = v;
+  pendingList.querySelectorAll("button").forEach(button => button.disabled = v);
 }
 
-async function post(path, body) {
+async function request(path, options = {}) {
   const res = await fetch(API + path, {
-    method: "POST",
+    ...options,
     headers: {
       "Content-Type": "application/json",
       "Authorization": `Bearer ${localStorage.getItem("mas_token")}`
     },
-    body: JSON.stringify(body)
+    body: options.body
   });
   if (!res.ok) {
     let detail = "";
@@ -155,6 +160,11 @@ async function post(path, body) {
   $("status").classList.remove("off");
   return res.json();
 }
+
+const post = (path, body) => request(path, {
+  method: "POST",
+  body: JSON.stringify(body)
+});
 
 function fail(e) {
   $("status").classList.add("off");
@@ -180,16 +190,65 @@ async function approveAction(ok) {
   if (busy) return;
   setBusy(true);
   try {
-    const data = await post("/approve", { thread_id: threadId, is_approved: ok });
-    add("note " + (ok ? "ok" : "no"), ok ? "Approved" : "Rejected", fmt(data.response ?? ""));
-  } catch (e) { fail(e); }
-  finally { setBusy(false); }
+    const data = await post("/approve", {
+      thread_id: ok.thread_id,
+      is_approved: ok.approved
+    });
+    add("note " + (ok.approved ? "ok" : "no"), ok.approved ? "Approved" : "Rejected",
+      fmt(`Thread ${data.thread_id}\n${data.response ?? ""}`));
+  } catch (e) {
+    fail(e);
+  } finally {
+    setBusy(false);
+    refreshPendingApprovals();
+  }
+}
+
+async function refreshPendingApprovals() {
+  if (refreshingApprovals || busy) return;
+  refreshingApprovals = true;
+  try {
+    const approvals = await request("/approvals");
+    pendingList.replaceChildren();
+    if (!approvals.length) {
+      pendingList.textContent = "No actions are waiting for approval.";
+      return;
+    }
+    for (const approval of approvals) {
+      const item = document.createElement("article");
+      item.className = "pending-item";
+      const meta = document.createElement("div");
+      meta.className = "pending-meta";
+      meta.textContent = `Thread: ${approval.thread_id} · Owner: ${approval.username}`;
+      const prompt = document.createElement("p");
+      prompt.className = "pending-request";
+      prompt.textContent = approval.request;
+      const actions = document.createElement("div");
+      actions.className = "pending-actions";
+      const approve = document.createElement("button");
+      approve.type = "button";
+      approve.className = "btn approve";
+      approve.textContent = "Approve";
+      approve.onclick = () => approveAction({ thread_id: approval.thread_id, approved: true });
+      const reject = document.createElement("button");
+      reject.type = "button";
+      reject.className = "btn reject";
+      reject.textContent = "Reject";
+      reject.onclick = () => approveAction({ thread_id: approval.thread_id, approved: false });
+      actions.append(approve, reject);
+      item.append(meta, prompt, actions);
+      pendingList.append(item);
+    }
+  } catch (e) {
+    pendingList.textContent = "Could not load pending approvals.";
+    $("status").classList.add("off");
+  } finally {
+    refreshingApprovals = false;
+  }
 }
 
 sendBtn.onclick = sendMessage;
 $("logoutBtn").addEventListener("click", logout);
-approveBtn.onclick = () => approveAction(true);
-rejectBtn.onclick = () => approveAction(false);
 input.addEventListener("keydown", e => {
   if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
 });
@@ -197,6 +256,8 @@ input.addEventListener("input", () => {
   input.style.height = "auto";
   input.style.height = Math.min(input.scrollHeight, 140) + "px";
 });
+refreshPendingApprovals();
+window.setInterval(refreshPendingApprovals, 5000);
 input.focus();
 </script>
 </body>

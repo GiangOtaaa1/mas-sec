@@ -92,8 +92,12 @@ textarea::placeholder{color:var(--muted)}
 
 <script>
 const API = window.location.origin + "/api";
-const threadId = "guest_session_" + (crypto.randomUUID ? crypto.randomUUID().slice(0, 8) : Math.floor(Math.random() * 1e6));
 const $ = id => document.getElementById(id);
+const threadStorageKey = `mas_guest_thread_${localStorage.getItem("mas_username") || "guest"}`;
+const pendingStorageKey = `${threadStorageKey}_pending`;
+const threadId = sessionStorage.getItem(threadStorageKey) ||
+  `guest_session_${crypto.randomUUID ? crypto.randomUUID() : Math.floor(Math.random() * 1e9)}`;
+sessionStorage.setItem(threadStorageKey, threadId);
 const chat = $("chat"), input = $("input"), sendBtn = $("sendBtn");
 let busy = false;
 
@@ -130,6 +134,51 @@ function add(kind, who, html) {
   return row.querySelector(".bubble");
 }
 
+async function waitForApproval(bubble) {
+  while (true) {
+    const response = await fetch(`${API}/v1/agent/status/${encodeURIComponent(threadId)}`, {
+      headers: {
+        "Authorization": ["Bearer", localStorage.getItem("mas_token")].join(" ")
+      }
+    });
+    if (!response.ok) {
+      let detail = "";
+      try { detail = (await response.json()).detail; } catch (_) {}
+      throw new Error(detail || `HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+    if (data.thread_id !== threadId || !["WAITING_FOR_APPROVAL", "COMPLETED", "FAILED"].includes(data.status)) {
+      throw new Error("Unexpected approval status response.");
+    }
+    if (data.status === "COMPLETED" || data.status === "FAILED") {
+      sessionStorage.removeItem(pendingStorageKey);
+      bubble.innerHTML = fmt(data.response);
+      return;
+    }
+
+    bubble.innerHTML = fmt(`Waiting for admin approval. Thread: ${threadId}`);
+    await new Promise(resolve => window.setTimeout(resolve, 2500));
+  }
+}
+
+async function resumePendingApproval() {
+  if (sessionStorage.getItem(pendingStorageKey) !== "true") return;
+  busy = true;
+  sendBtn.disabled = true;
+  const bubble = add("note", "Pending approval", esc(`Checking approval status for thread ${threadId}…`));
+  try {
+    await waitForApproval(bubble);
+  } catch (error) {
+    bubble.innerHTML = fmt(`Could not retrieve the approval result: ${error.message}\nRefresh this page to check again. Thread: ${threadId}`);
+    $("status").classList.add("off");
+  } finally {
+    busy = sessionStorage.getItem(pendingStorageKey) === "true";
+    sendBtn.disabled = busy;
+    chat.scrollTop = chat.scrollHeight;
+  }
+}
+
 async function sendMessage(text) {
   const message = (text ?? input.value).trim();
   if (!message || busy) return;
@@ -153,13 +202,24 @@ async function sendMessage(text) {
     }
     const data = await res.json();
     $("status").classList.remove("off");
-    bubble.innerHTML = fmt(data.response ?? "");
+    if (data.status === "WAITING_FOR_APPROVAL") {
+      sessionStorage.setItem(pendingStorageKey, "true");
+      await waitForApproval(bubble);
+    } else {
+      bubble.innerHTML = fmt(data.response ?? "");
+    }
   } catch (e) {
-    $("status").classList.add("off");
-    bubble.closest(".row").remove();
-    add("err", "Error", esc("Request failed. " + e.message));
+    if (sessionStorage.getItem(pendingStorageKey) === "true") {
+      bubble.innerHTML = fmt(`Could not retrieve the approval result: ${e.message}\nRefresh this page to check again. Thread: ${threadId}`);
+      $("status").classList.add("off");
+    } else {
+      $("status").classList.add("off");
+      bubble.closest(".row").remove();
+      add("err", "Error", esc("Request failed. " + e.message));
+    }
   } finally {
-    busy = false; sendBtn.disabled = false; input.focus();
+    busy = sessionStorage.getItem(pendingStorageKey) === "true";
+    sendBtn.disabled = busy; input.focus();
     chat.scrollTop = chat.scrollHeight;
   }
 }
@@ -174,6 +234,7 @@ input.addEventListener("input", () => {
   input.style.height = "auto";
   input.style.height = Math.min(input.scrollHeight, 140) + "px";
 });
+resumePendingApproval();
 input.focus();
 </script>
 </body>

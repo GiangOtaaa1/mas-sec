@@ -43,11 +43,14 @@ def orchestrator_node(state: AgentState):
     
     # 1. Check Static RBAC 
     if next_target in ["Worker1", "Worker2"]:
-        is_allowed = check_permission(user_role, next_target)
+        guest_approval_required = user_role == "guest" and next_target == "Worker2"
+        is_allowed = guest_approval_required or check_permission(user_role, next_target)
         if not is_allowed:
             log_audit("RBAC_DENIED", user_role, f"Denied access to {next_target}.")
             reject_msg = AIMessage(content=f"[RBAC DENIED] Policy violation. Role '{user_role}' is not authorized to use {next_target}.")
             return {"messages": [reject_msg], "next_agent": "FINISH"}
+        if guest_approval_required:
+            log_audit("HITL_REQUIRED", user_role, "Guest Worker2 request requires admin approval.")
             
     # Prevent Guest from executing dangerous commands in Worker2
     if next_target == "Worker2" and user_role == "guest":
@@ -113,6 +116,9 @@ def route_condition(state: AgentState):
         return "worker1"
         
     elif next_agent == "Worker2":
+        if state.get("user_role") == "guest":
+            return "hitl_node"
+
        # Context-aware security check
         prompt = state["messages"][-1].content.lower()
         
